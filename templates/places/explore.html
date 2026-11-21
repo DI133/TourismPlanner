@@ -1,0 +1,340 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Explore Destinations | TourismPlanner</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
+
+    <link
+        rel="stylesheet"
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    >
+
+    <link rel="stylesheet" href="{% static 'places/css/explore.css' %}">
+    <link rel="stylesheet" href="{% static 'css/sidebar.css' %}">
+</head>
+
+<body>
+
+<div class="explore-layout">
+
+    {% include "includes/sidebar.html" with active_page="explore" %}
+
+    <main class="main-content">
+
+        <header class="topbar">
+            <div>
+                <p class="breadcrumb">DISCOVER / EXPLORE</p>
+                <h1>Explore destinations</h1>
+                <p class="page-subtitle">
+                    Find places worth discovering and create unforgettable memories.
+                </p>
+            </div>
+
+            <div class="topbar-right">
+                <div class="location-label">
+                    <span>⌖</span>
+                    <span id="nearbyLocationLabel">Detecting your location...</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Search section -->
+        <section class="search-section">
+
+            <div class="search-autocomplete">
+                <div class="search-box">
+                    <span class="search-icon">⌕</span>
+            
+                    <input
+                        type="text"
+                        id="searchInput"
+                        placeholder="Search beaches, museums, attractions..."
+                        autocomplete="off"
+                        aria-autocomplete="list"
+                        aria-controls="searchSuggestions"
+                        aria-expanded="false"
+                    >
+            
+                    <button id="searchButton" type="button">
+                        Search
+                    </button>
+                </div>
+            
+                <div
+                    id="searchSuggestions"
+                    class="search-suggestions"
+                    role="listbox"
+                    hidden
+                ></div>
+            </div>
+
+            <div class="filter-row">
+
+                <div class="category-filters" id="categoryFilters">
+                    <button class="filter-chip active" data-subcategory="">
+                        All places
+                    </button>
+
+                    <button class="filter-chip" data-subcategory="attraction">
+                        Attractions
+                    </button>
+
+                    <button class="filter-chip" data-subcategory="museum">
+                        Museums
+                    </button>
+
+                    <button class="filter-chip" data-subcategory="aquarium">
+                        Aquariums
+                    </button>
+
+                    <button class="filter-chip" data-subcategory="artwork">
+                        Art & Culture
+                    </button>
+
+                    <button class="filter-chip" data-category="historic">
+                        Historic sites
+                    </button>
+
+                    <button class="filter-chip" data-subcategory="hotel">
+                        Hotels
+                    </button>
+
+                    <button class="filter-chip" data-subcategory="restaurant">
+                        Restaurants
+                    </button>
+
+                    <button class="filter-chip" data-subcategory="cafe">
+                        Cafés
+                    </button>
+                </div>
+
+                <!-- State filter -->
+                <select
+                    id="stateFilter"
+                    class="city-filter"
+                    aria-label="Filter by state"
+                >
+                    <option value="">All states</option>
+                </select>
+
+                <!-- District filter -->
+                <select
+                    id="districtFilter"
+                    class="city-filter"
+                    aria-label="Filter by district"
+                    disabled
+                >
+                    <option value="">All districts</option>
+            </select>
+
+            </div>
+
+        </section>
+
+        <!-- Nearby Attractions -->
+        <section
+            id="nearbyAttractionsSection"
+            class="nearby-attractions-section"
+            hidden
+        >
+
+            <div class="nearby-heading">
+                <div>
+                    <p class="eyebrow">DISCOVER AROUND YOU</p>
+                    <h2>Attractions Near You</h2>
+
+                    <p id="nearbyLocationStatus">
+                        Finding attractions near your location...
+                    </p>
+                </div>
+            </div>
+
+            <div class="nearby-category-tabs">
+                <button class="nearby-category-tab active" data-nearby-category="all">All Places</button>
+                <button class="nearby-category-tab" data-nearby-category="hotel">Hotels</button>
+                <button class="nearby-category-tab" data-nearby-category="restaurant">Restaurants</button>
+                <button class="nearby-category-tab" data-nearby-category="cafe">Cafés</button>
+                <button class="nearby-category-tab" data-nearby-category="attraction">Attractions</button>
+                <button class="nearby-category-tab" data-nearby-category="museum">Museums</button>
+                <button class="nearby-category-tab" data-nearby-category="historic_site">Historic Sites</button>
+                <button class="nearby-category-tab" data-nearby-category="art_culture">Art & Culture</button>
+            </div>
+
+            <div
+                id="nearbyAttractionsGrid"
+                class="nearby-attractions-grid"
+            ></div>
+            <div id="nearbyPagination" class="nearby-pagination"></div>
+        </section>
+
+        <!-- Results -->
+        <section class="results-section">
+
+            <div class="results-heading">
+                <div>
+                    <h2>Discover amazing places</h2>
+                    <p id="resultsCount">Finding destinations for you...</p>
+                </div>
+
+                <button
+                    id="resetFilters"
+                    class="reset-button"
+                    type="button"
+                >
+                    Reset filters
+                </button>
+            </div>
+
+            <!-- Map and places -->
+            <div class="discovery-grid">
+
+                <div class="places-panel">
+
+                    <div id="loadingState" class="loading-state">
+                        <div class="loader"></div>
+                        <p>Discovering beautiful places...</p>
+                    </div>
+
+                    <div id="placesGrid" class="places-grid"></div>
+
+                    <div id="emptyState" class="empty-state" hidden>
+                        <div class="empty-icon">⌕</div>
+                        <h3>No places found</h3>
+                        <p>Try changing your search or filters.</p>
+                    </div>
+
+                    <div id="errorState" class="error-state" hidden>
+                        <h3>Unable to load places</h3>
+                        <p id="errorMessage">Please try again.</p>
+                        <button id="retryButton" type="button">
+                            Retry
+                        </button>
+                    </div>
+
+                    <div id="pagination" class="pagination"></div>
+
+                </div>
+
+                <!-- Map -->
+                <aside class="map-panel">
+
+                    <div class="map-heading">
+                        <div>
+                            <h3>Explore on map</h3>
+                            <p>Discover destinations geographically</p>
+                        </div>
+                    </div>
+
+                    <div id="exploreMap"></div>
+
+                    <div class="map-footer">
+                        <span class="map-dot"></span>
+                        <span>OpenStreetMap</span>
+                    </div>
+
+                </aside>
+
+            </div>
+
+        </section>
+
+        <!-- Destination Details Modal -->
+        <div id="placeDetailsModal" class="details-modal" hidden>
+
+            <div
+                class="details-overlay"
+                id="detailsOverlay"
+            ></div>
+
+            <div class="details-container">
+
+                <button
+                    type="button"
+                    id="closeDetailsModal"
+                    class="details-close"
+                    aria-label="Close details"
+                >
+                    &times;
+                </button>
+
+                <div
+                    class="details-gallery"
+                    id="detailsGallery"
+                >
+                    <div class="place-placeholder">
+                        <span>✦</span>
+                        <small>Loading photographs...</small>
+                    </div>
+                </div>
+
+                <div class="details-content">
+
+                    <span
+                        id="detailsCategory"
+                        class="place-category"
+                    ></span>
+
+                    <h2 id="detailsName">Destination name</h2>
+
+                    <p
+                        id="detailsLocation"
+                        class="place-location"
+                    ></p>
+
+                    <div class="details-section">
+                        <h3>About this destination</h3>
+                        <p id="detailsDescription"></p>
+                    </div>
+
+                    <div class="details-section">
+                        <h3>Visitor information</h3>
+                        <div id="detailsMetadata"></div>
+                    </div>
+
+                    <div class="details-actions">
+
+                        <a
+                            id="detailsOSMLink"
+                            href="#"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="view-place-button"
+                        >
+                            View on OpenStreetMap ↗
+                        </a>
+
+                        <button
+                            type="button"
+                            id="addToTripButton"
+                        >
+                            Add to Trip
+                        </button>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </main>
+
+</div>
+
+<!-- Leaflet JavaScript -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<!-- TourismPlanner Explore JavaScript -->
+<script src="{% static 'places/js/explore.js' %}"></script>
+
+</body>
+</html>

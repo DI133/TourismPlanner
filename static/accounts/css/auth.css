@@ -1,0 +1,463 @@
+
+/* =====================================
+   TOURISMPLANNER - AUTHENTICATION PAGES
+   ===================================== */
+
+   * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+.auth-body {
+    min-height: 100vh;
+    background: #f7f6f0;
+    font-family: "Segoe UI", Arial, sans-serif;
+    color: #263b31;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 35px 20px;
+}
+
+.auth-shell {
+    width: 100%;
+    max-width: 1100px;
+    min-height: 650px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    background: #ffffff;
+    border-radius: 24px;
+    overflow: hidden;
+    box-shadow: 0 18px 55px rgba(30, 60, 45, 0.09);
+}
+
+/* Left branding panel */
+
+.auth-panel {
+    background: #245c46;
+    color: #ffffff;
+    padding: 65px 55px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.auth-panel::after {
+    content: "";
+    position: absolute;
+    width: 330px;
+    height: 330px;
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 50%;
+    right: -130px;
+    bottom: -130px;
+    box-shadow:
+        0 0 0 35px rgba(255,255,255,0.035),
+        0 0 0 70px rgba(255,255,255,0.025);
+}
+
+.brand-mark {
+    font-family: Georgia, serif;
+    font-size: 25px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+}
+
+.auth-panel h1 {
+    max-width: 420px;
+    margin: 35px 0 22px;
+    font-family: Georgia, serif;
+    font-size: 43px;
+    line-height: 1.25;
+    font-weight: 600;
+}
+
+.auth-panel > p:last-of-type {
+    max-width: 390px;
+    color: #dce9df;
+    font-size: 16px;
+    line-height: 1.9;
+}
+
+/* Right login card */
+
+.auth-card {
+    padding: 65px 65px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.brand-mark--mobile {
+    display: none;
+}
+
+.auth-card h2 {
+    color: #193f32;
+    font-family: Georgia, serif;
+    font-size: 34px;
+    margin-bottom: 12px;
+}
+
+.lede {
+    color: #829087;
+    font-size: 15px;
+    line-height: 1.7;
+    margin-bottom: 32px;
+}
+
+/* Form */
+
+.auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+}
+
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+}
+
+.field label {
+    color: #344b3d;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.field input {
+    width: 100%;
+    height: 52px;
+    padding: 0 15px;
+    border: 1px solid #dfe5df;
+    border-radius: 11px;
+    background: #fbfcfa;
+    color: #263b31;
+    font-family: inherit;
+    font-size: 15px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.field input:focus {
+    border-color: #39785b;
+    box-shadow: 0 0 0 3px rgba(57, 120, 91, 0.10);
+}
+
+.password-row {
+    display: flex;
+    align-items: center;
+    position: relative;
+}
+
+.password-row input {
+    padding-right: 65px;
+}
+
+.text-button {
+    position: absolute;
+    right: 14px;
+    border: none;
+    background: transparent;
+    color: #39785b;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.text-button:hover {
+    color: #193f32;
+}
+
+/* Submit button */
+
+.submit-button {
+    width: 100%;
+    min-height: 53px;
+    margin-top: 8px;
+    border: none;
+    border-radius: 11px;
+    background: #245c46;
+    color: #ffffff;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.2s;
+}
+
+.submit-button:hover {
+    background: #193f32;
+    transform: translateY(-2px);
+}
+
+/* Footer */
+
+.auth-footer {
+    margin-top: 28px;
+    text-align: center;
+    color: #829087;
+    font-size: 14px;
+}
+
+.auth-footer a {
+    color: #245c46;
+    font-weight: 700;
+    text-decoration: none;
+    margin-left: 4px;
+}
+
+.auth-footer a:hover {
+    text-decoration: underline;
+}
+
+/* Messages and validation */
+
+.messages,
+.form-errors {
+    list-style: none;
+    margin-bottom: 20px;
+}
+
+.message,
+.form-errors li {
+    padding: 12px 14px;
+    border-radius: 9px;
+    margin-bottom: 8px;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.message--error,
+.message--warning,
+.form-errors li {
+    background: #fff0ed;
+    color: #a33e31;
+}
+
+.message--success {
+    background: #e8f4eb;
+    color: #245c46;
+}
+
+.message--info {
+    background: #edf3f8;
+    color: #365d7a;
+}
+
+.field-error {
+    color: #bd4439;
+    font-size: 12px;
+}
+
+/* Responsive layout */
+
+@media (max-width: 850px) {
+    .auth-shell {
+        max-width: 520px;
+        min-height: auto;
+        grid-template-columns: 1fr;
+    }
+
+    .auth-panel {
+        display: none;
+    }
+
+    .auth-card {
+        padding: 45px 35px;
+    }
+
+    .brand-mark--mobile {
+        display: block;
+        color: #245c46;
+        margin-bottom: 35px;
+    }
+}
+
+@media (max-width: 480px) {
+    .auth-body {
+        padding: 15px;
+    }
+
+    .auth-shell {
+        border-radius: 18px;
+    }
+
+    .auth-card {
+        padding: 35px 23px;
+    }
+
+    .auth-card h2 {
+        font-size: 29px;
+    }
+
+    .auth-form {
+        gap: 18px;
+    }
+}
+
+/* =====================================
+   TOURISMPLANNER - AUTH PAGE FINISHING
+   Registration, OTP and verification states
+   ===================================== */
+
+/* Keep long registration and OTP forms usable */
+.auth-body {
+    align-items: flex-start;
+}
+
+.auth-shell {
+    margin: auto;
+}
+
+.auth-card {
+    min-width: 0;
+}
+
+.auth-card > * {
+    max-width: 100%;
+}
+
+/* Registration help text */
+.field-help {
+    color: #829087;
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+/* OTP inputs */
+.otp-input input,
+.field input[name*="otp"],
+.field input[id*="otp"] {
+    text-align: center;
+    letter-spacing: 8px;
+    font-size: 22px;
+    font-weight: 700;
+}
+
+/* Resend OTP forms use a normal-flow button, not the password toggle */
+.resend-form {
+    display: flex;
+    justify-content: center;
+    margin-top: 18px;
+}
+
+.resend-form .text-button,
+.auth-form > .text-button {
+    position: static;
+    padding: 10px 14px;
+    border: 1px solid #dfe8e0;
+    border-radius: 9px;
+    background: #f7faf6;
+    color: #245c46;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.resend-form .text-button:hover,
+.auth-form > .text-button:hover {
+    background: #e8f0e9;
+}
+
+/* Verification success state */
+.success-panel {
+    padding: 26px;
+    border: 1px solid #d8e9dc;
+    border-radius: 16px;
+    background: #f0f7f0;
+}
+
+.success-panel h2 {
+    color: #245c46;
+    margin-bottom: 12px;
+}
+
+.success-panel p {
+    color: #65786b;
+    font-size: 14px;
+    line-height: 1.7;
+    margin-top: 8px;
+}
+
+/* Longer registration page: allow vertical scrolling */
+@media (min-width: 851px) {
+    .auth-body {
+        min-height: 100vh;
+        padding-top: 32px;
+        padding-bottom: 32px;
+    }
+
+    .auth-shell:has(.auth-form [name="confirm_password"]) {
+        min-height: 760px;
+    }
+
+    .auth-shell:has(.auth-form [name="confirm_password"]) .auth-card {
+        padding-top: 42px;
+        padding-bottom: 42px;
+    }
+}
+
+/* Smaller screens */
+@media (max-width: 850px) {
+    .auth-body {
+        align-items: flex-start;
+    }
+
+    .auth-shell {
+        margin: auto;
+    }
+
+    .auth-card {
+        width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .otp-input input,
+    .field input[name*="otp"],
+    .field input[id*="otp"] {
+        letter-spacing: 5px;
+    }
+
+    .success-panel {
+        padding: 20px;
+    }
+}
+
+
+
+/* Resend verification code button */
+
+.resend-form {
+    display: flex;
+    justify-content: center;
+    margin-top: 18px;
+}
+
+.resend-button {
+    padding: 12px 22px;
+    border: 1px solid #dce8df;
+    border-radius: 10px;
+    background: #f0f5f0;
+    color: #245c46;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.resend-button:hover {
+    background: #e2eee5;
+    border-color: #245c46;
+    transform: translateY(-2px);
+}
+
+.resend-button:focus-visible {
+    outline: 3px solid rgba(36, 92, 70, 0.25);
+    outline-offset: 3px;
+}

@@ -1,0 +1,90 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Verify Email — TourismPlanner</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'accounts/css/auth.css' %}">
+</head>
+<body class="auth-body">
+    <div class="auth-shell">
+        <aside class="auth-panel" aria-hidden="true">
+            <p class="brand-mark">TourismPlanner</p>
+            <h1>One step closer to your next journey.</h1>
+            <p>Verify your email address to activate your account.</p>
+        </aside>
+
+        <main class="auth-card">
+            <p class="brand-mark brand-mark--mobile">TourismPlanner</p>
+
+            {% if verified %}
+                <div class="success-panel" role="status">
+                    <h2>Email address verified!</h2>
+                    <p>Your TourismPlanner account is now active.</p>
+                    <p>Your email is verified successfully. You can now log in to your account.</p>
+                </div>
+            {% else %}
+                <h2>Verify your email address</h2>
+                <p class="lede">
+                    Enter the six-digit OTP sent to your registered email address.
+                </p>
+
+                {% if messages %}
+                    <ul class="messages" aria-live="polite">
+                        {% for message in messages %}
+                            <li class="message message--{{ message.tags }}">
+                                {{ message }}
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+
+                <form method="post" class="auth-form">
+                    {% csrf_token %}
+
+                    {% if form.non_field_errors %}
+                        <ul class="form-errors">
+                            {% for error in form.non_field_errors %}
+                                <li>{{ error }}</li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+
+                    <div class="field">
+                        <label for="{{ form.otp.id_for_label }}">
+                            {{ form.otp.label }}
+                        </label>
+                        {{ form.otp }}
+
+                        {% for error in form.otp.errors %}
+                            <p class="field-error">{{ error }}</p>
+                        {% endfor %}
+                    </div>
+
+                    <button type="submit" class="submit-button">
+                        Verify OTP
+                    </button>
+                </form>
+
+                <form method="post"
+                      action="{% url 'accounts:resend_otp' %}"
+                      class="auth-form">
+                    {% csrf_token %}
+                    <button type="submit" class="text-button">
+                        Resend OTP
+                    </button>
+                </form>
+
+                <p class="auth-footer">
+                    <a href="{% url 'accounts:register' %}">
+                        Back to registration
+                    </a>
+                </p>
+            {% endif %}
+        </main>
+    </div>
+</body>
+</html>
+    

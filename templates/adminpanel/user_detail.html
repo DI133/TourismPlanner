@@ -1,0 +1,161 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>User Details | TourismPlanner</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f6f8;
+            padding: 30px;
+            color: #24332e;
+        }
+
+        h1 {
+            color: #205c48;
+        }
+
+        .panel {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            max-width: 750px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+        }
+
+        .actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 25px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 11px 18px;
+            border: 0;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .status {
+            background: #205c48;
+            color: white;
+        }
+
+        .delete {
+            background: #b42318;
+            color: white;
+        }
+
+        .back {
+            display: inline-block;
+            margin-top: 20px;
+            color: #205c48;
+        }
+
+        .message {
+            padding: 12px;
+            margin-bottom: 12px;
+            background: #e7f4eb;
+            border-radius: 6px;
+        }
+    </style>
+</head>
+
+<body>
+
+<h1>User Details</h1>
+
+{% if messages %}
+    {% for message in messages %}
+        <div class="message">{{ message }}</div>
+    {% endfor %}
+{% endif %}
+
+<div class="panel">
+
+    <h2>{{ user.name }}</h2>
+
+    <p><strong>Email:</strong> {{ user.email }}</p>
+    <p><strong>Mobile:</strong> {{ user.mobile_number|default:"—" }}</p>
+    <p><strong>Mobile verified:</strong> {{ user.mobile_verified|yesno:"Yes,No" }}</p>
+    <p><strong>Account status:</strong> {{ user.account_status|title }}</p>
+    <p><strong>Registered:</strong> {{ user.created_at|date:"d M Y, H:i" }}</p>
+    <p><strong>Last login:</strong> {{ user.last_login_at|default:"Never" }}</p>
+
+    <hr>
+
+    <h3>Travel Activity</h3>
+
+    <p><strong>Total trips:</strong> {{ trips|length }}</p>
+    <p><strong>Saved places:</strong> {{ saved_count }}</p>
+
+    <h3>User Trips</h3>
+
+    {% for trip in trips %}
+        <p>
+            <strong>{{ trip.title }}</strong>
+            — {{ trip.status|title }}
+            ({{ trip.start_date }} to {{ trip.end_date }})
+        </p>
+    {% empty %}
+        <p>No trips created.</p>
+    {% endfor %}
+
+    <div class="actions">
+
+        <!-- Deactivate Account -->
+        {% if user.account_status == "active" %}
+
+            <form method="POST"
+                  action="{% url 'adminpanel:toggle_user_status' user_id=user.id %}"
+                  onsubmit="return confirm('Are you sure you want to deactivate this account? The user will lose login access, but all their data will be preserved.');">
+
+                {% csrf_token %}
+
+                <button class="status" type="submit">
+                    Deactivate Account
+                </button>
+            </form>
+
+        <!-- Reactivate Account -->
+        {% elif user.account_status == "disabled" %}
+
+            <form method="POST"
+                  action="{% url 'adminpanel:toggle_user_status' user_id=user.id %}"
+                  onsubmit="return confirm('Are you sure you want to reactivate this account?');">
+
+                {% csrf_token %}
+
+                <button class="status" type="submit">
+                    Activate Account
+                </button>
+            </form>
+
+        {% endif %}
+
+        <!-- Permanently Delete User -->
+        <form method="POST"
+              action="{% url 'adminpanel:delete_user' user_id=user.id %}"
+              onsubmit="return confirm('Permanently delete this user and all associated trips and saved places? This action cannot be undone.');">
+
+            {% csrf_token %}
+
+            <button class="delete" type="submit">
+                Delete User
+            </button>
+        </form>
+
+    </div>
+
+</div>
+
+<a class="back" href="{% url 'adminpanel:users' %}">
+    ← Back to Users
+</a>
+
+</body>
+</html>

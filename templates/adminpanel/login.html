@@ -1,0 +1,207 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TourismPlanner | Admin Login</title>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(135deg, #e8f3ed, #f4f6f8);
+            color: #24332e;
+            padding: 20px;
+        }
+
+        .login-container {
+            width: 100%;
+            max-width: 420px;
+            background: #ffffff;
+            padding: 40px 35px;
+            border-radius: 14px;
+            box-shadow: 0 8px 30px rgba(32, 92, 72, 0.12);
+        }
+
+        .brand {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .brand-icon {
+            width: 65px;
+            height: 65px;
+            margin: 0 auto 15px;
+            background: #205c48;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        .brand h1 {
+            color: #205c48;
+            font-size: 25px;
+            margin-bottom: 8px;
+        }
+
+        .brand p {
+            color: #718078;
+            font-size: 14px;
+        }
+
+        h2 {
+            text-align: center;
+            font-size: 21px;
+            margin-bottom: 25px;
+            color: #24332e;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #34483f;
+        }
+
+        input {
+            width: 100%;
+            padding: 13px 14px;
+            border: 1px solid #d5ded9;
+            border-radius: 7px;
+            outline: none;
+            font-size: 15px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        input:focus {
+            border-color: #205c48;
+            box-shadow: 0 0 0 3px rgba(32, 92, 72, 0.10);
+        }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            margin-top: 8px;
+            border: none;
+            border-radius: 7px;
+            background: #205c48;
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.2s;
+        }
+
+        button:hover {
+            background: #174936;
+            transform: translateY(-1px);
+        }
+
+        .message {
+            padding: 12px;
+            margin-bottom: 18px;
+            border-radius: 7px;
+            background: #fdecea;
+            color: #b42318;
+            font-size: 14px;
+            text-align: center;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 25px;
+            font-size: 12px;
+            color: #89958e;
+        }
+
+        @media (max-width: 480px) {
+            .login-container {
+                padding: 30px 22px;
+            }
+
+            .brand h1 {
+                font-size: 22px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="login-container">
+
+        <div class="brand">
+            <div class="brand-icon">T</div>
+            <h1>TourismPlanner</h1>
+            <p>Administration Portal</p>
+        </div>
+
+        <h2>Administrator Login</h2>
+
+        {% if messages %}
+            {% for message in messages %}
+                <div class="message">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <form method="POST">
+            {% csrf_token %}
+
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input
+                    type="text"
+                    id="username"
+                    name="username"
+                    placeholder="Enter administrator username"
+                    required
+                    autocomplete="username"
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input
+                    type="password"
+                    id="password"
+                    name="password"
+                    placeholder="Enter your password"
+                    required
+                    autocomplete="current-password"
+                >
+            </div>
+
+            <button type="submit">
+                Login to Admin Panel
+            </button>
+        </form>
+
+        <div class="footer">
+            TourismPlanner Admin Panel
+        </div>
+
+    </div>
+
+</body>
+</html>

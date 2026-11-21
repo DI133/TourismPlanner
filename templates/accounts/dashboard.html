@@ -1,0 +1,146 @@
+
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TourismPlanner | Dashboard</title>
+    <link rel="stylesheet" href="{% static 'accounts/css/dashboard.css' %}">
+    <link rel="stylesheet" href="{% static 'css/sidebar.css' %}">
+</head>
+
+<body class="dashboard-body">
+
+<div class="dashboard-layout">
+
+    {% include "includes/sidebar.html" with active_page="dashboard" %}
+
+    <main class="dashboard-main">
+        
+        {% if messages %}
+            <div class="dashboard-messages">
+            {% for message in messages %}
+                <div class="dashboard-message {{ message.tags }}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+            </div>
+        {% endif %}
+
+        <header class="topbar">
+            <div>
+                <small>YOUR TRAVEL WORKSPACE</small>
+                <h2>Dashboard</h2>
+            </div>
+
+            <div class="profile-chip">
+                Welcome, {{ user.name }}
+            </div>
+        </header>
+
+        <section class="welcome-banner">
+            <span class="eyebrow">DISCOVER · PLAN · EXPERIENCE</span>
+
+            <h1>Your next adventure starts here.</h1>
+
+            <p>
+                Discover beautiful destinations, organize your travel
+                plans and create unforgettable journeys with TourismPlanner.
+            </p>
+        </section>
+
+        <div class="section-heading">
+            <h3>Your travel overview</h3>
+        </div>
+
+        <section class="stats-grid">
+            <article class="stat-card">
+                <span class="stat-label">Total trips</span>
+                <div class="stat-value">{{ total_trips }}</div>
+            </article>
+        
+            <article class="stat-card">
+                <span class="stat-label">Destinations planned</span>
+                <div class="stat-value">{{ destinations_planned }}</div>
+            </article>
+        
+            <article class="stat-card">
+                <span class="stat-label">Places visited</span>
+                <div class="stat-value">{{ places_visited }}</div>
+            </article>
+        </section>
+
+        <div class="section-heading">
+            <h3>Make your next move</h3>
+        </div>
+
+        <section class="feature-grid">
+
+            <a href="{% url 'places:explore' %}" class="feature-card">
+                <div class="feature-icon">⌖</div>
+                <h4>Explore destinations</h4>
+                <p>
+                    Find attractions, discover interesting places
+                    and explore destinations on a map.
+                </p>
+                <span class="feature-link">Explore now →</span>
+            </a>
+        
+            <a href="{% url 'trips:list' %}" class="feature-card">
+                <div class="feature-icon">▤</div>
+                <h4>Plan a new trip</h4>
+                <p>
+                    Organize destinations and build your
+                    personalized day-wise travel itinerary.
+                </p>
+                <span class="feature-link">Start planning →</span>
+            </a>
+        
+        </section>
+
+        <div class="section-heading">
+            <h3>Your recent trips</h3>
+        </div>
+
+        
+<section class="recent-trips">
+    {% if recent_trips %}
+        <div class="recent-trips-grid">
+            {% for trip in recent_trips %}
+                <article class="recent-trip-card">
+                    <h4>{{ trip.title }}</h4>
+
+                    <p>
+                        {{ trip.start_date }} – {{ trip.end_date }}
+                    </p>
+
+                    <p>
+                        {{ trip.days|length }} days
+                    </p>
+
+                    <p>
+                        {{ trip.status|title }}
+                    </p>
+
+                    <a href="{% url 'trips:detail' trip_id=trip.id %}">
+                        View Itinerary →
+                    </a>
+                </article>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty-state">
+            <h4>Your travel story starts here.</h4>
+            <p>You haven't created any trips yet.</p>
+            <a href="/trips/">Create your first trip</a>
+        </div>
+    {% endif %}
+</section>
+
+
+    </main>
+</div>
+
+</body>
+</html>

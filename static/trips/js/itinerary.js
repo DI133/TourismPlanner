@@ -1,0 +1,1228 @@
+
+// =====================================================
+// COMMON UTILITIES
+// =====================================================
+
+function getCookie(name) {
+    const cookie = document.cookie
+        .split("; ")
+        .find(row => row.startsWith(name + "="));
+
+    return cookie ? decodeURIComponent(cookie.split("=")[1]) : "";
+}
+
+function placeCoordinatesValid(lon, lat) {
+    return (
+        Number.isFinite(lon) &&
+        Number.isFinite(lat) &&
+        lon >= -180 &&
+        lon <= 180 &&
+        lat >= -90 &&
+        lat <= 90
+    );
+}
+
+
+// =====================================================
+// REMOVE DESTINATION
+// =====================================================
+
+function initializeRemovePlaces() {
+    document.querySelectorAll(".remove-place-button").forEach(button => {
+        button.addEventListener("click", async () => {
+            if (!confirm("Are you sure you want to remove this destination?")) {
+                return;
+            }
+
+            button.disabled = true;
+            button.textContent = "Removing...";
+
+            try {
+                const response = await fetch("/trips/api/remove-place/", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRFToken": getCookie("csrftoken")
+                    },
+                    body: JSON.stringify({
+                        trip_id: window.TRIP_ID,
+                        day_number: Number(button.dataset.day),
+                        place_index: Number(button.dataset.index)
+                    })
+                });
+
+                const result = await response.json();
+
+                if (!response.ok || !result.success) {
+                    throw new Error(
+                        result.error || "Unable to remove destination."
+                    );
+                }
+
+                window.location.reload();
+
+            } catch (error) {
+                alert(error.message);
+                button.disabled = false;
+                button.textContent = "Remove";
+            }
+        });
+    });
+}
+
+
+// =====================================================
+// REORDER DESTINATIONS
+// =====================================================
+
+function initializeReorderPlaces() {
+    document.querySelectorAll(".reorder-place-button").forEach(button => {
+        button.addEventListener("click", async () => {
+            button.disabled = true;
+
+            try {
+                const response = await fetch("/trips/api/reorder-place/", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRFToken": getCookie("csrftoken")
+                    },
+                    body: JSON.stringify({
+                        trip_id: window.TRIP_ID,
+                        day_number: Number(button.dataset.day),
+                        place_index: Number(button.dataset.index),
+                        direction: button.dataset.direction
+                    })
+                });
+
+                const result = await response.json();
+
+                if (!response.ok || !result.success) {
+                    throw new Error(
+                        result.error || "Unable to reorder destinations."
+                    );
+                }
+
+                window.location.reload();
+
+            } catch (error) {
+                alert(error.message);
+                button.disabled = false;
+            }
+        });
+    });
+}
+
+
+// ==========================================
+// CURRENT GPS LOCATION MARKER
+// ==========================================
+
+function addCurrentLocationMarker(map, existingBounds = []) {
+    if (!navigator.geolocation) {
+        console.warn("Geolocation is not supported.");
+        return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+        position => {
+            const latitude = position.coords.latitude;
+            const longitude = position.coords.longitude;
+
+            const currentLocationIcon = L.divIcon({
+                className: "current-location-icon",
+                html: `
+                    <div class="current-location-pulse">
+                        <div class="current-location-dot"></div>
+                    </div>
+                `,
+                iconSize: [24, 24],
+                iconAnchor: [12, 12]
+            });
+
+            const marker = L.marker(
+                [latitude, longitude],
+                { icon: currentLocationIcon, zIndexOffset: 1000 }
+            ).addTo(map);
+
+            marker.bindPopup("<strong>📍 You are here</strong>");
+
+            const combinedBounds = [
+                ...existingBounds,
+                [latitude, longitude]
+            ];
+            
+            if (combinedBounds.length > 0) {
+                map.fitBounds(combinedBounds, {
+                    padding: [40, 40],
+                    maxZoom: 13
+                });
+            }
+        },
+        error => {
+            console.warn("Unable to retrieve current location:", error.message);
+        },
+        {
+            enableHighAccuracy: true,
+            timeout: 15000,
+            maximumAge: 60000
+        }
+    );
+}
+
+
+// =====================================================
+// DAY-WISE MAPS AND ROAD ROUTING
+// =====================================================
+
+function initializeDayMaps() {
+    if (typeof L === "undefined") {
+        console.error("Leaflet library is not loaded.");
+        return;
+    }
+
+    document.querySelectorAll(".show-day-map-button").forEach(button => {
+        button.addEventListener("click", async () => {
+            const mapElement = document.getElementById(button.dataset.mapId);
+
+            if (!mapElement) return;
+
+            const dayNumber = mapElement.dataset.day;
+
+            const summaryElement = document.getElementById(
+                `route-summary-${dayNumber}`
+            );
+
+            // Hide map
+            if (!mapElement.hidden) {
+                mapElement.hidden = true;
+                button.textContent = "Show in Map";
+
+                if (summaryElement) {
+                    summaryElement.hidden = true;
+                }
+
+                return;
+            }
+
+            // Show map
+            mapElement.hidden = false;
+            button.textContent = "Hide Map";
+
+            // Reuse existing map if already initialized
+            if (mapElement.dataset.initialized === "true") {
+                setTimeout(() => {
+                    mapElement._leafletMap?.invalidateSize();
+                }, 150);
+
+                if (
+                    summaryElement &&
+                    mapElement.dataset.routeLoaded === "true"
+                ) {
+                    summaryElement.hidden = false;
+                }
+
+                return;
+            }
+
+            // Read destination coordinates
+            const placeElements = document.querySelectorAll(
+                `.itinerary-place[data-day="${dayNumber}"]`
+            );
+
+            const locations = [];
+
+            placeElements.forEach(place => {
+                const lonText = place.dataset.lon;
+                const latText = place.dataset.lat;
+
+                const lon = Number(lonText);
+                const lat = Number(latText);
+
+                if (
+                    lonText === "" ||
+                    latText === "" ||
+                    !placeCoordinatesValid(lon, lat)
+                ) {
+                    return;
+                }
+
+                locations.push({
+                    name:
+                        place.querySelector("h3")?.textContent.trim() ||
+                        "Destination",
+                    lat,
+                    lon
+                });
+            });
+
+            if (locations.length === 0) {
+                mapElement.textContent =
+                    "No valid destination coordinates available.";
+                return;
+            }
+
+            // Initialize Leaflet
+            const map = L.map(mapElement).setView(
+                [locations[0].lat, locations[0].lon],
+                13
+            );
+
+            mapElement._leafletMap = map;
+            mapElement.dataset.initialized = "true";
+
+            addCurrentLocationMarker(
+                map,
+                locations.map(location => [location.lat, location.lon])
+            );
+
+            L.tileLayer(
+                "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+                {
+                    attribution:
+                        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                }
+            ).addTo(map);
+
+            // Add all destination markers
+            locations.forEach((location, index) => {
+                const safeName = location.name
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;");
+
+                L.marker([location.lat, location.lon])
+                    .addTo(map)
+                    .bindPopup(
+                        `<strong>${index + 1}. ${safeName}</strong>`
+                    );
+            });
+
+            setTimeout(() => map.invalidateSize(), 150);
+
+            // Single destination
+            if (locations.length === 1) {
+                map.setView(
+                    [locations[0].lat, locations[0].lon],
+                    14
+                );
+
+                if (summaryElement) {
+                    summaryElement.hidden = false;
+                    summaryElement.textContent =
+                        "Add another destination to calculate a driving route.";
+                }
+
+                mapElement.dataset.routeLoaded = "true";
+                return;
+            }
+
+            if (summaryElement) {
+                summaryElement.hidden = false;
+                summaryElement.textContent =
+                    "Calculating complete driving route...";
+            }
+
+            // Route every consecutive destination
+            try {
+                let totalDistance = 0;
+                let totalDuration = 0;
+
+                const allRoutePoints = [];
+                const routeComparisons = [];
+
+                for (
+                    let index = 0;
+                    index < locations.length - 1;
+                    index++
+                ) {
+                    const start = locations[index];
+                    const end = locations[index + 1];
+
+                    const coordinates =
+                        `${start.lon},${start.lat};${end.lon},${end.lat}`;
+
+                    const routeUrl =
+                        `https://router.project-osrm.org/route/v1/driving/${coordinates}` +
+                        "?overview=full&geometries=geojson&steps=false&alternatives=2";
+
+                    const response = await fetch(routeUrl);
+
+                    if (!response.ok) {
+                        throw new Error(
+                            `Road route segment ${index + 1} could not be loaded.`
+                        );
+                    }
+
+                    const result = await response.json();
+
+                    if (
+                        result.code !== "Ok" ||
+                        !result.routes?.length
+                    ) {
+                        throw new Error(
+                            `No driving route found between ${start.name} and ${end.name}.`
+                        );
+                    }
+
+                    const routes = result.routes;
+
+                    // Primary route
+                    const route = routes[0];
+
+                    totalDistance += route.distance;
+                    totalDuration += route.duration;
+
+                    routes.forEach((alternativeRoute, routeIndex) => {
+                        const roadCoordinates =
+                        alternativeRoute.geometry.coordinates.map(
+                            coordinate => [
+                            coordinate[1],
+                            coordinate[0]
+                        ]
+                    );
+
+                    const routeDistance =
+                        (alternativeRoute.distance / 1000).toFixed(1);
+
+                    const routeMinutes =
+                        Math.round(alternativeRoute.duration / 60);
+
+                    const routeHours = Math.floor(routeMinutes / 60);
+                    const remainingMinutes = routeMinutes % 60;
+
+                    const routeDurationText = routeHours > 0
+                        ? `${routeHours} hr ${remainingMinutes} min`
+                        : `${remainingMinutes} min`;
+
+                        routeComparisons.push({
+                            segmentNumber: index + 1,
+                            startName: start.name,
+                            endName: end.name,
+                            routeNumber: routeIndex + 1,
+                            distance: routeDistance,
+                            duration: routeDurationText
+                        });
+
+                    L.polyline(roadCoordinates, {
+                        color: routeIndex === 0 ? "#276849" : "#e09b42",
+                        weight: routeIndex === 0 ? 6 : 4,
+                        opacity: routeIndex === 0 ? 0.95 : 0.65,
+                        dashArray: routeIndex === 0 ? null : "8, 8"
+                    }).addTo(map);
+
+                    if (routeIndex === 0) {
+                        allRoutePoints.push(...roadCoordinates);
+                    }
+                });
+                }
+
+                // Fit map around complete route
+                if (allRoutePoints.length) {
+                    const currentBounds = [
+                        ...allRoutePoints,
+                        ...locations.map(location => [location.lat, location.lon])
+                    ];
+                
+                    map.fitBounds(currentBounds, {
+                        padding: [40, 40],
+                        maxZoom: 13
+                    });
+                }
+
+                // Calculate distance and duration
+                const distanceKm =
+                    (totalDistance / 1000).toFixed(1);
+
+                const totalMinutes =
+                    Math.round(totalDuration / 60);
+
+                const hours = Math.floor(totalMinutes / 60);
+                const minutes = totalMinutes % 60;
+
+                const durationText = hours > 0
+                    ? `${hours} hr ${minutes} min`
+                    : `${minutes} min`;
+
+                    if (summaryElement) {
+                        const comparisonHTML = routeComparisons.map(route => `
+                            <div class="route-stat">
+                                <span>
+                                    <strong>Segment ${route.segmentNumber}:</strong>
+                                    ${route.startName} → ${route.endName}
+                                </span>
+                        
+                                <span>
+                                    ${route.routeNumber === 1
+                                        ? "🟢 Primary Route"
+                                        : "🟠 Alternative Route"}
+                                </span>
+                        
+                                <strong>${route.distance} km · ${route.duration}</strong>
+                            </div>
+                        `).join("");
+                    
+                        summaryElement.innerHTML = `
+                            <div class="route-stat">
+                                <span>🚗 Total Driving Distance (Primary Route)</span>
+                                <strong>${distanceKm} km</strong>
+                            </div>
+                    
+                            <div class="route-stat">
+                                <span>⏱ Estimated Driving Time (Traffic Not Included)</span>
+                                <strong>${durationText}</strong>
+                            </div>
+                    
+                            <h4>Journey Breakdown</h4>
+                            ${comparisonHTML}
+                    
+                            <p class="route-disclaimer">
+                                Alternative routes are displayed only when available.
+                                Travel times are estimates and do not include live traffic.
+                            </p>
+                        `;
+                    
+                        summaryElement.hidden = false;
+                    }
+
+                mapElement.dataset.routeLoaded = "true";
+
+            } catch (error) {
+                console.error("OSRM routing error:", error);
+
+                if (summaryElement) {
+                    summaryElement.textContent =
+                        error.message ||
+                        "Unable to calculate the complete driving route.";
+
+                    summaryElement.hidden = false;
+                }
+            }
+        });
+    });
+}
+
+
+// =====================================================
+// TRIP DASHBOARD SUMMARY
+// =====================================================
+
+async function initializeTripSummary() {
+    const dayCards = document.querySelectorAll(".day-card");
+
+    const daysElement = document.getElementById("summaryDays");
+    const placesElement = document.getElementById("summaryPlaces");
+    const distanceElement = document.getElementById("summaryDistance");
+    const durationElement = document.getElementById("summaryDuration");
+    const dailyOverview = document.getElementById("dailyOverview");
+
+    if (
+        !daysElement ||
+        !placesElement ||
+        !distanceElement ||
+        !durationElement ||
+        !dailyOverview
+    ) {
+        return;
+    }
+
+    let totalPlaces = 0;
+    let totalDistance = 0;
+    let totalDuration = 0;
+
+    let successfulRouteDays = 0;
+    let failedRouteDays = 0;
+
+    daysElement.textContent = dayCards.length;
+    dailyOverview.innerHTML = "";
+
+    for (const [index, dayCard] of [...dayCards].entries()) {
+        const places = dayCard.querySelectorAll(".itinerary-place");
+
+        const dayNumber =
+            dayCard.querySelector(".day-label")?.textContent.match(/\d+/)?.[0] ||
+            index + 1;
+
+        totalPlaces += places.length;
+
+        // Daily overview
+        const row = document.createElement("div");
+        row.className = "daily-overview-row";
+
+        const dayLabel = document.createElement("strong");
+        dayLabel.textContent = `Day ${dayNumber}`;
+
+        const placeLabel = document.createElement("span");
+        placeLabel.textContent =
+            `${places.length} ${
+                places.length === 1 ? "destination" : "destinations"
+            }`;
+
+        row.append(dayLabel, placeLabel);
+        dailyOverview.appendChild(row);
+
+        // Read valid coordinates
+        const locations = [...places]
+            .map(place => ({
+                lon: Number(place.dataset.lon),
+                lat: Number(place.dataset.lat)
+            }))
+            .filter(location =>
+                placeCoordinatesValid(location.lon, location.lat)
+            );
+
+        // Include saved GPS starting location when available
+        const startLon = Number(dayCard.dataset.startLon);
+        const startLat = Number(dayCard.dataset.startLat);
+
+        if (placeCoordinatesValid(startLon, startLat)) {
+            locations.unshift({
+                lon: startLon,
+                lat: startLat
+            });
+        }
+
+        if (locations.length < 2) {
+            continue;
+        }
+
+        try {
+            let dayDistance = 0;
+            let dayDuration = 0;
+
+            // Calculate every consecutive road segment
+            for (
+                let leg = 0;
+                leg < locations.length - 1;
+                leg++
+            ) {
+                const start = locations[leg];
+                const end = locations[leg + 1];
+
+                const coordinates =
+                    `${start.lon},${start.lat};${end.lon},${end.lat}`;
+
+                const url =
+                    `https://router.project-osrm.org/route/v1/driving/${coordinates}` +
+                    "?overview=false&steps=false";
+
+                const response = await fetch(url);
+
+                if (!response.ok) {
+                    throw new Error(
+                        `Day ${dayNumber}, segment ${leg + 1} failed.`
+                    );
+                }
+
+                const result = await response.json();
+
+                if (
+                    result.code !== "Ok" ||
+                    !result.routes?.length
+                ) {
+                    throw new Error(
+                        `No route found for Day ${dayNumber}, segment ${leg + 1}.`
+                    );
+                }
+
+                dayDistance += result.routes[0].distance;
+                dayDuration += result.routes[0].duration;
+            }
+
+            totalDistance += dayDistance;
+            totalDuration += dayDuration;
+
+            successfulRouteDays++;
+
+        } catch (error) {
+            failedRouteDays++;
+
+            console.error(
+                `Trip summary routing failed for Day ${dayNumber}:`,
+                error
+            );
+        }
+    }
+
+    placesElement.textContent = totalPlaces;
+
+    if (successfulRouteDays > 0 || totalPlaces === 0) {
+        distanceElement.textContent =
+            `${(totalDistance / 1000).toFixed(1)} km`;
+
+        const totalMinutes =
+            Math.round(totalDuration / 60);
+
+        const hours = Math.floor(totalMinutes / 60);
+        const minutes = totalMinutes % 60;
+
+        durationElement.textContent = hours > 0
+            ? `${hours}h ${minutes}m`
+            : `${minutes} min`;
+
+    } else {
+        distanceElement.textContent = "Unavailable";
+        durationElement.textContent = "Unavailable";
+    }
+
+    if (failedRouteDays > 0) {
+        const note = document.createElement("p");
+
+        note.className = "route-summary-note";
+
+        note.textContent =
+            "Some daily routes could not be calculated. Distance and time totals may be incomplete.";
+
+        dailyOverview.appendChild(note);
+    }
+}
+
+
+// =====================================================
+// DAY-WISE COMPLETION AND DESTINATION LOCKING
+// =====================================================
+
+function initializeDayCompletion() {
+    document.querySelectorAll(".day-completion-button").forEach(button => {
+        const dayCard = button.closest(".day-card");
+
+        function updateDayLock() {
+            const completed =
+                button.dataset.completed === "true";
+
+            if (!dayCard) return;
+
+            dayCard.querySelectorAll(
+                ".reorder-place-button, .remove-place-button"
+            ).forEach(actionButton => {
+                actionButton.disabled = completed;
+
+                actionButton.title = completed
+                    ? "Mark this day incomplete to edit destinations."
+                    : "";
+            });
+        }
+
+        // Apply saved completion status on page load
+        updateDayLock();
+
+        button.addEventListener("click", async () => {
+            const previousValue =
+                button.dataset.completed === "true";
+
+            const completed = !previousValue;
+
+            button.disabled = true;
+            button.textContent = "Saving...";
+
+            try {
+                const response = await fetch(
+                    "/trips/api/update-day-completion/",
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "X-CSRFToken": getCookie("csrftoken")
+                        },
+                        body: JSON.stringify({
+                            trip_id: window.TRIP_ID,
+                            day_number: Number(button.dataset.day),
+                            completed: completed
+                        })
+                    }
+                );
+
+                const result = await response.json();
+
+                if (!response.ok || !result.success) {
+                    throw new Error(
+                        result.error ||
+                        "Unable to update day completion."
+                    );
+                }
+
+                button.dataset.completed = String(completed);
+
+                button.textContent = completed
+                    ? "✓ Day Completed"
+                    : "Mark Day as Completed";
+
+                button.classList.toggle(
+                    "day-completed",
+                    completed
+                );
+
+                button.classList.toggle(
+                    "day-pending",
+                    !completed
+                );
+
+                // Lock or unlock destination actions
+                updateDayLock();
+
+            } catch (error) {
+                alert(error.message);
+
+                button.dataset.completed =
+                    String(previousValue);
+
+                button.textContent = previousValue
+                    ? "✓ Day Completed"
+                    : "Mark Day as Completed";
+
+            } finally {
+                button.disabled = false;
+            }
+        });
+    });
+}
+
+
+
+async function initializeCompleteTripMap() {
+    const mapElement = document.getElementById("completeTripMap");
+    const legendElement = document.getElementById("completeTripMapLegend");
+
+    if (!mapElement || typeof L === "undefined") return;
+
+    const dayColors = [
+        "#2563eb",
+        "#16a34a",
+        "#ea580c",
+        "#9333ea",
+        "#db2777",
+        "#0891b2",
+        "#ca8a04"
+    ];
+
+    const map = L.map(mapElement);
+    
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    const bounds = [];
+    
+    addCurrentLocationMarker(map, bounds);
+
+    if (legendElement) {
+        legendElement.innerHTML = "";
+    }
+
+    const dayCards = document.querySelectorAll(".day-card");
+
+    for (const [index, dayCard] of [...dayCards].entries()) {
+        const dayNumber = index + 1;
+        const color = dayColors[index % dayColors.length];
+
+        const places = dayCard.querySelectorAll(".itinerary-place");
+
+        const locations = [];
+
+        // Include saved GPS starting location when available
+        const startLon = Number(dayCard.dataset.startLon);
+        const startLat = Number(dayCard.dataset.startLat);
+
+        if (placeCoordinatesValid(startLon, startLat)) {
+            locations.push({
+                lon: startLon,
+                lat: startLat,
+                name: "Starting Location",
+                isStart: true
+            });
+        }
+
+        // Add destination markers
+        places.forEach((place, placeIndex) => {
+            const lon = Number(place.dataset.lon);
+            const lat = Number(place.dataset.lat);
+
+            if (!placeCoordinatesValid(lon, lat)) return;
+
+            const name =
+                place.querySelector("h3")?.textContent.trim()
+                || "Destination";
+
+            locations.push({
+                lon,
+                lat,
+                name,
+                isStart: false,
+                placeIndex: placeIndex + 1
+            });
+
+            const marker = L.circleMarker([lat, lon], {
+                radius: 9,
+                color: "#ffffff",
+                weight: 2,
+                fillColor: color,
+                fillOpacity: 1
+            }).addTo(map);
+
+            const popup = document.createElement("div");
+            const title = document.createElement("strong");
+            title.textContent = name;
+
+            const dayLabel = document.createElement("div");
+            dayLabel.textContent = `Day ${dayNumber}`;
+            dayLabel.style.color = color;
+            dayLabel.style.fontWeight = "700";
+
+            popup.append(title, dayLabel);
+            marker.bindPopup(popup);
+
+            bounds.push([lat, lon]);
+        });
+
+        // Add starting location marker
+        if (locations.length > 0 && locations[0].isStart) {
+            const start = locations[0];
+
+            const startMarker = L.circleMarker(
+                [start.lat, start.lon],
+                {
+                    radius: 10,
+                    color: "#ffffff",
+                    weight: 3,
+                    fillColor: "#111827",
+                    fillOpacity: 1
+                }
+            ).addTo(map);
+
+            startMarker.bindPopup(`Day ${dayNumber} Starting Location`);
+
+            bounds.push([start.lat, start.lon]);
+        }
+
+        // Draw the complete driving route for this day
+        if (locations.length >= 2) {
+            try {
+                const coordinates = locations
+                    .map(location => `${location.lon},${location.lat}`)
+                    .join(";");
+
+                const routeURL =
+                    `https://router.project-osrm.org/route/v1/driving/${coordinates}` +
+                    "?overview=full&geometries=geojson&steps=false";
+
+                const response = await fetch(routeURL);
+
+                if (!response.ok) {
+                    throw new Error(`Day ${dayNumber} route request failed.`);
+                }
+
+                const routeData = await response.json();
+
+                if (
+                    routeData.code === "Ok" &&
+                    routeData.routes?.length
+                ) {
+                    const routeCoordinates =
+                        routeData.routes[0].geometry.coordinates.map(
+                            coordinate => [coordinate[1], coordinate[0]]
+                        );
+
+                    L.polyline(routeCoordinates, {
+                        color,
+                        weight: 5,
+                        opacity: 0.8
+                    }).addTo(map);
+                } else {
+                    console.warn(`No complete road route found for Day ${dayNumber}.`);
+                }
+
+            } catch (error) {
+                console.error(
+                    `Complete trip map routing failed for Day ${dayNumber}:`,
+                    error
+                );
+            }
+        }
+
+        // Add day-wise legend
+        if (legendElement && places.length > 0) {
+            const legendItem = document.createElement("div");
+            legendItem.className = "trip-map-legend-item";
+
+            const dot = document.createElement("span");
+            dot.className = "trip-map-legend-dot";
+            dot.style.backgroundColor = color;
+
+            const label = document.createElement("span");
+            label.textContent = `Day ${dayNumber}`;
+
+            legendItem.append(dot, label);
+            legendElement.appendChild(legendItem);
+        }
+    }
+
+    if (bounds.length > 0) {
+        map.fitBounds(bounds, {
+            padding: [40, 40],
+            maxZoom: 13
+        });
+    } else {
+        map.setView([20.5937, 78.9629], 5);
+    }
+
+    window.completeTripMap = map;
+
+    setTimeout(() => map.invalidateSize(), 150);
+}
+
+
+
+
+function initializeRouteOptimization() {
+    document.querySelectorAll(".optimize-day-button").forEach(button => {
+        button.addEventListener("click", () => {
+            const dayNumber = Number(button.dataset.day);
+
+            if (!navigator.geolocation) {
+                alert("Geolocation is not supported by your browser.");
+                return;
+            }
+
+            button.disabled = true;
+            button.textContent = "Getting your location...";
+
+            navigator.geolocation.getCurrentPosition(async position => {
+                try {
+                    button.textContent = "Optimizing route...";
+
+                    const response = await fetch("/trips/api/optimize-day/", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "X-CSRFToken": getCookie("csrftoken")
+                        },
+                        body: JSON.stringify({
+                            trip_id: window.TRIP_ID,
+                            day_number: dayNumber,
+                            start_location: {
+                                longitude: position.coords.longitude,
+                                latitude: position.coords.latitude
+                            }
+                        })
+                    });
+
+                    const result = await response.json();
+
+                    if (!response.ok || !result.success) {
+                        throw new Error(result.error || "Optimization failed.");
+                    }
+
+                    // Display preview inside the day card
+                    const preview = document.getElementById(
+                        `optimization-preview-${dayNumber}`
+                    );
+
+                    preview.innerHTML = `
+                        <div class="optimization-heading">
+                            <div class="optimization-icon">✨</div>
+                            <div>
+                                <h3>Optimized Route Recommendation</h3>
+                                <p>A more efficient order for your destinations on this day.</p>
+                            </div>
+                        </div>
+
+                        <div class="optimization-metrics">
+                            <div class="metric-card original">
+                                <span>Original Distance</span>
+                                <strong>${result.original_distance_km} km</strong>
+                            </div>
+
+                            <div class="metric-card optimized">
+                                <span>Optimized Distance</span>
+                                <strong>${result.optimized_distance_km} km</strong>
+                            </div>
+
+                            <div class="metric-card saved">
+                                <span>Distance Saved</span>
+                                <strong>${(
+                                    result.original_distance_km -
+                                    result.optimized_distance_km
+                                    ).toFixed(2)} km</strong>
+                            </div>
+                        </div>
+
+                        <h4 class="optimization-list-heading">
+                            ☷ Recommended Destination Order
+                        </h4>
+
+                        <ol class="optimized-order-list"></ol>
+
+                        <div class="optimization-actions">
+                            <button type="button" class="accept-optimized-route">
+                                ✓ Accept Route
+                                <small>Update this day's sequence</small>
+                            </button>
+
+                            <button type="button" class="reject-optimized-route">
+                                ✕ Reject
+                                <small>Keep current order</small>
+                            </button>
+                        </div>
+                    `;
+
+                    const orderList = preview.querySelector(".optimized-order-list");
+
+                    result.optimized_items.forEach(name => {
+                        const item = document.createElement("li");
+                        item.textContent = name;
+                        orderList.appendChild(item);
+                    });
+                    
+                    // Reject recommendation: preserve the original itinerary
+                    preview.querySelector(".reject-optimized-route")
+                        .addEventListener("click", () => {
+                            preview.style.display = "none";
+                            preview.innerHTML = "";
+                    });
+
+                    // Accept recommendation: save the optimized order
+                    preview.querySelector(".accept-optimized-route")
+                        .addEventListener("click", async function () {
+                            const acceptButton = this;
+
+                            acceptButton.disabled = true;
+                            acceptButton.textContent = "Saving route...";
+
+                            try {
+                                const saveResponse = await fetch(
+                                    "/trips/api/accept-optimized-route/",
+                                    {
+                                        method: "POST",
+                                        headers: {
+                                            "Content-Type": "application/json",
+                                            "X-CSRFToken": getCookie("csrftoken")
+                                        },
+                                        body: JSON.stringify({
+                                            trip_id: window.TRIP_ID,
+                                            day_number: dayNumber,
+                                            ordered_indices: result.optimized_indices,
+                                            start_location: {
+                                                longitude: position.coords.longitude,
+                                                latitude: position.coords.latitude
+                                            }
+                                        })
+                                    }
+                                );
+
+                            const saveResult = await saveResponse.json();
+
+                            if (!saveResponse.ok || !saveResult.success) {
+                                throw new Error(
+                                    saveResult.error || "Unable to save optimized route."
+                                );
+                            }
+
+                            window.location.reload();
+
+                            } catch (error) {
+                                alert(error.message);
+                                acceptButton.disabled = false;
+                                acceptButton.textContent = "✓ Accept Route";
+                            }
+                        });
+
+                        preview.style.display = "block";
+
+                } catch (error) {
+                    alert(error.message);
+
+                } finally {
+                    button.disabled = false;
+                    button.textContent = "✨ Optimize Route";
+                }
+
+            }, error => {
+                alert("Unable to get your location. Please allow location access.");
+                button.disabled = false;
+                button.textContent = "✨ Optimize Route";
+            });
+        });
+    });
+}
+// =====================================================
+// INITIALIZE ALL FEATURES
+// =====================================================
+
+document.addEventListener("DOMContentLoaded", () => {
+    initializeRemovePlaces();
+    initializeReorderPlaces();
+    initializeDayMaps();
+    initializeTripSummary();
+    initializeDayCompletion();
+    initializeRouteOptimization();
+    initializeCompleteTripMap();
+});
+
+
+// Nearby places recommendations
+document.addEventListener("click", function (event) {
+    const toggle = event.target.closest(".nearby-toggle-button");
+
+    if (toggle) {
+        const placeCard = toggle.closest(".itinerary-place");
+
+        const latitude = placeCard.dataset.lat;
+        const longitude = placeCard.dataset.lon;
+        const destination = placeCard.querySelector("h3")?.textContent.trim()
+            || "Selected Destination";
+
+        if (!latitude || !longitude) {
+            alert("Coordinates unavailable for this destination.");
+            return;
+        }
+
+        const params = new URLSearchParams({
+            latitude: latitude,
+            longitude: longitude,
+            destination: destination
+        });
+
+        window.location.href =
+            `/trips/nearby-places/?${params.toString()}`;
+    }
+});
+
+
+function renderNearbyResults(placeCard, category) {
+    const container = placeCard.querySelector(".nearby-results");
+
+    const results = JSON.parse(placeCard.dataset.nearbyData || "[]")
+        .filter(place => place.category === category);
+
+    if (!results.length) {
+        container.textContent = "No nearby places found in this category within 5 km.";
+        return;
+    }
+
+    container.innerHTML = "";
+
+    results.forEach(place => {
+        const card = document.createElement("div");
+        card.className = "nearby-result-card";
+
+        const name = document.createElement("strong");
+        name.textContent = place.name || "Unnamed place";
+
+        const distance = document.createElement("p");
+        distance.textContent = `${place.distance_km} km away`;
+
+        const address = document.createElement("p");
+        address.textContent = place.address || "Address unavailable";
+
+        const directions = document.createElement("a");
+        directions.textContent = "Get Directions ↗";
+        directions.href =
+            `https://www.google.com/maps/dir/?api=1&destination=${place.latitude},${place.longitude}`;
+        directions.target = "_blank";
+        directions.rel = "noopener noreferrer";
+
+        card.append(name, distance, address, directions);
+        container.appendChild(card);
+    });
+}

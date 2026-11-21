@@ -1,0 +1,97 @@
+
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Login OTP — TourismPlanner</title>
+    <link rel="stylesheet" href="{% static 'accounts/css/auth.css' %}">
+</head>
+
+<body class="auth-body">
+
+<div class="auth-shell">
+
+    <aside class="auth-panel">
+        <p class="brand-mark">TourismPlanner</p>
+
+        <h1>Your journey deserves a secure beginning.</h1>
+
+        <p>
+            Verify your identity and continue planning
+            your next adventure.
+        </p>
+    </aside>
+
+    <main class="auth-card">
+
+        <p class="brand-mark brand-mark--mobile">TourismPlanner</p>
+
+        <h2>Verify your login</h2>
+
+        <p class="lede">
+            Enter the six-digit verification code sent
+            to your registered email address.
+        </p>
+
+        {% if messages %}
+            <ul class="messages" aria-live="polite">
+                {% for message in messages %}
+                    <li class="message message--{{ message.tags }}">
+                        {{ message }}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+
+        <form method="POST"
+              action="{% url 'accounts:verify_login_otp' %}"
+              class="auth-form">
+
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+                <ul class="form-errors">
+                    {% for error in form.non_field_errors %}
+                        <li>{{ error }}</li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+
+            <div class="field otp-input">
+                <label for="{{ form.otp.id_for_label }}">
+                    Verification code
+                </label>
+
+                {{ form.otp }}
+
+                {% for error in form.otp.errors %}
+                    <p class="field-error">{{ error }}</p>
+                {% endfor %}
+            </div>
+
+            <button type="submit" class="submit-button">
+                Verify and continue
+            </button>
+        </form>
+
+        <form method="POST"
+              action="{% url 'accounts:resend_login_otp' %}"
+              class="resend-form">
+            {% csrf_token %}
+
+            <button type="submit" class="resend-button">
+                Resend verification code
+            </button>
+        </form>
+
+        <p class="auth-footer">
+            <a href="{% url 'accounts:login' %}">Back to login</a>
+        </p>
+
+    </main>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,593 @@
+
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ trip.title }} | TourismPlanner</title>
+
+    <link rel="stylesheet" href="{% static 'trips/css/trips.css' %}">
+    <link rel="stylesheet" href="{% static 'trips/css/itinerary.css' %}">
+    <link
+        rel="stylesheet"
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+    <link rel="stylesheet" href="{% static 'trips/css/expenses.css' %}">
+</head>
+
+<body>
+
+<header class="topbar">
+    <a href="/places/" class="brand">TourismPlanner</a>
+    <a href="{% url 'trips:list' %}" class="back-link">← My Trips</a>
+</header>
+
+<main class="container">
+
+    <section class="itinerary-heading">
+        <p class="eyebrow">YOUR JOURNEY</p>
+        <h1>{{ trip.title }}</h1>
+
+        <p class="subtitle">
+            {{ trip.start_date }} — {{ trip.end_date }}
+        </p>
+
+        <p class="trip-summary">
+            {{ trip.days|length }} days · Your day-wise itinerary
+        </p>
+
+        <a
+            href="{% url 'trips:download_trip_pdf' trip_id=trip_id %}"
+            class="download-pdf-button"
+        >
+            ↓ Download Trip PDF
+        </a>
+    </section>
+
+    <!-- Trip Dashboard -->
+    <section class="trip-dashboard">
+        <h2>Trip Overview</h2>
+
+        <div class="trip-stats-grid">
+
+            <div class="trip-stat-card">
+                <span>📅</span>
+                <h3 id="summaryDays">0</h3>
+                <p>Total Days</p>
+            </div>
+
+            <div class="trip-stat-card">
+                <span>📍</span>
+                <h3 id="summaryPlaces">0</h3>
+                <p>Destinations</p>
+            </div>
+
+            <div class="trip-stat-card">
+                <span>🚗</span>
+                <h3 id="summaryDistance">Calculating...</h3>
+                <p>Driving Distance</p>
+            </div>
+
+            <div class="trip-stat-card">
+                <span>⏱</span>
+                <h3 id="summaryDuration">Calculating...</h3>
+                <p>Driving Time</p>
+            </div>
+
+        </div>
+
+
+
+        <div class="daily-overview">
+            <h3>Daily Itinerary Overview</h3>
+            <div id="dailyOverview"></div>
+        </div>
+    </section>
+        
+    
+    
+    <!-- Weather Forecast Section -->
+    <section class="weather-section">
+
+        <div class="weather-section-header">
+            <div>
+                <p class="eyebrow">TRIP CONDITIONS</p>
+                <h2>Destination Weather</h2>
+                <p>
+                    Check weather conditions for your planned destinations.
+                </p>
+            </div>
+
+            <button type="button" id="refreshWeatherButton">
+                Refresh Weather
+            </button>
+        </div>
+
+        <div id="tripWeatherContainer">
+            <p>Loading weather information...</p>
+        </div>
+
+    </section>
+
+
+<!-- Expense Tracker -->
+<section class="expense-tracker-section">
+
+    <div class="expense-heading">
+        <div>
+            <p class="eyebrow">TRIP FINANCES</p>
+            <h2>Expense Tracker</h2>
+            <p>Manage your trip budget and track your spending.</p>
+        </div>
+    </div>
+
+    <!-- Budget Overview -->
+    <div class="expense-summary-grid">
+
+        <div class="expense-stat-card">
+            <span>💰</span>
+            <p>Total Budget</p>
+            <h3 id="expenseBudget">₹0</h3>
+        </div>
+
+        <div class="expense-stat-card">
+            <span>💳</span>
+            <p>Total Spent</p>
+            <h3 id="expenseSpent">₹0</h3>
+        </div>
+
+        <div class="expense-stat-card">
+            <span>💵</span>
+            <p>Remaining Budget</p>
+            <h3 id="expenseRemaining">₹0</h3>
+        </div>
+
+        <div class="expense-stat-card">
+            <span>📊</span>
+            <p>Budget Used</p>
+            <h3 id="expensePercentage">0%</h3>
+        </div>
+
+    </div>
+
+    <!-- Collapsible Add Expense Form -->
+    <details class="expense-panel expense-form-toggle">
+
+        <summary>+ Add Expense</summary>
+
+        <form id="expenseForm">
+
+            <div class="expense-form-grid">
+
+                <div>
+                    <label for="expenseAmount">Amount (₹)</label>
+                    <input type="number" id="expenseAmount"
+                           min="0.01" step="0.01"
+                           required placeholder="Enter amount">
+                </div>
+
+                <div>
+                    <label for="expenseCategory">Category</label>
+                    <select id="expenseCategory" required>
+                        <option value="">Select category</option>
+                        <option value="Food">Food</option>
+                        <option value="Accommodation">Accommodation</option>
+                        <option value="Transport">Transport</option>
+                        <option value="Activities">Activities</option>
+                        <option value="Shopping">Shopping</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label for="expenseDate">Expense Date</label>
+                    <input type="date" id="expenseDate"
+                           min="{{ trip.start_date|date:'Y-m-d' }}"
+                           max="{{ trip.end_date|date:'Y-m-d' }}"
+                           required>
+                </div>
+
+                <div>
+                    <label for="expenseDay">Itinerary Day (Optional)</label>
+                    <select id="expenseDay">
+                        <option value="">Not linked to a day</option>
+
+                        {% for day in trip.days %}
+                            <option value="{{ day.day_number }}"
+                                    data-date="{{ day.date|date:'Y-m-d' }}">
+                                Day {{ day.day_number }} — {{ day.date }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="expense-description-field">
+                    <label for="expenseDescription">Description</label>
+                    <input type="text" id="expenseDescription"
+                           placeholder="What was this expense for?">
+                </div>
+
+            </div>
+
+            <button type="submit" id="addExpenseButton">
+                Save Expense
+            </button>
+
+            <p id="expenseFormMessage" class="expense-form-message" hidden></p>
+        </form>
+
+    </details>
+
+    <!-- Expense History -->
+    <div class="expense-panel">
+        <h3>Expense History</h3>
+        <div id="expenseHistory">
+            <p>No expenses recorded yet.</p>
+        </div>
+    </div>
+
+
+    
+<!-- Edit Expense Modal -->
+<div id="editExpenseModal" class="expense-modal" hidden>
+    <div class="expense-modal-content">
+
+        <div class="expense-modal-header">
+            <h3>Edit Expense</h3>
+            <button type="button" id="closeExpenseModal"
+                    class="modal-close-button">&times;</button>
+        </div>
+
+        <form id="editExpenseForm">
+
+            <div class="expense-form-grid">
+
+                <div>
+                    <label for="editExpenseAmount">Amount (₹)</label>
+                    <input type="number" id="editExpenseAmount"
+                           min="0.01" step="0.01" required>
+                </div>
+
+                <div>
+                    <label for="editExpenseCategory">Category</label>
+                    <select id="editExpenseCategory" required>
+                        <option value="Food">Food</option>
+                        <option value="Accommodation">Accommodation</option>
+                        <option value="Transport">Transport</option>
+                        <option value="Activities">Activities</option>
+                        <option value="Shopping">Shopping</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label for="editExpenseDate">Expense Date</label>
+                    <input type="date" id="editExpenseDate" required
+                           min="{{ trip.start_date|date:'Y-m-d' }}"
+                           max="{{ trip.end_date|date:'Y-m-d' }}">
+                </div>
+
+                <div>
+                    <label for="editExpenseDay">Itinerary Day (Optional)</label>
+                    <select id="editExpenseDay">
+                        <option value="">Not linked to a day</option>
+                        {% for day in trip.days %}
+                            <option value="{{ day.day_number }}"
+                                    data-date="{{ day.date|date:'Y-m-d' }}">
+                                Day {{ day.day_number }} — {{ day.date }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="expense-description-field">
+                    <label for="editExpenseDescription">Description</label>
+                    <input type="text" id="editExpenseDescription">
+                </div>
+
+            </div>
+
+            <p id="editExpenseMessage" class="expense-form-message" hidden></p>
+
+            <div class="expense-modal-actions">
+                <button type="button" id="cancelExpenseEdit"
+                        class="modal-cancel-button">Cancel</button>
+
+                <button type="submit" id="saveExpenseChanges"
+                        class="modal-save-button">Save Changes</button>
+            </div>
+
+        </form>
+    </div>
+</div>
+
+
+    <!-- Expense Charts -->
+    <div class="expense-charts-grid">
+
+        <div class="expense-panel">
+            <h3>Daily Spending</h3>
+            <canvas id="dailyExpenseChart"></canvas>
+        </div>
+
+        <div class="expense-panel">
+            <h3>Category-wise Spending</h3>
+            <canvas id="categoryExpenseChart"></canvas>
+        </div>
+
+    </div>
+
+</section>
+
+
+    <!-- Complete Trip Map -->
+    <section class="complete-trip-map-section">
+
+        <div class="complete-trip-map-heading">
+            <div>
+                <p class="eyebrow">EXPLORE YOUR JOURNEY</p>
+                <h2>Complete Trip Map</h2>
+                <p>View all destinations across every day of your trip.</p>
+            </div>
+        </div>
+
+        <div id="completeTripMap" class="complete-trip-map"></div>
+
+        <div id="completeTripMapLegend" class="complete-trip-map-legend"></div>
+
+    </section>
+
+    <!-- Daily Itinerary -->
+    <section class="days-container">
+
+        {% for day in trip.days %}
+
+        <article
+            class="day-card"
+            data-start-lon="{{ day.start_location.longitude|default:'' }}"
+            data-start-lat="{{ day.start_location.latitude|default:'' }}"
+        >
+
+            <!-- Day Header -->
+            <div class="day-header">
+
+                <div>
+                    <span class="day-label">
+                        DAY {{ day.day_number }}
+                    </span>
+
+                    <h2>{{ day.date }}</h2>
+                </div>
+
+                <div class="day-header-actions">
+
+                    <span class="place-count">
+                        {{ day.items|length }}
+                        {% if day.items|length == 1 %}
+                            place
+                        {% else %}
+                            places
+                        {% endif %}
+                    </span>
+
+                    <button
+                        type="button"
+                        class="optimize-day-button"
+                        data-day="{{ day.day_number }}"
+                        {% if day.completed %}disabled{% endif %}
+                        >
+                        ✨ Optimize Route
+                    </button>
+
+                    <button
+                        type="button"
+                        class="day-completion-button {% if day.completed %}day-completed{% else %}day-pending{% endif %}"
+                        data-day="{{ day.day_number }}"
+                        data-completed="{{ day.completed|yesno:'true,false' }}"
+                        >
+                        {% if day.completed %}
+                            ✓ Day Completed
+                        {% else %}
+                            Mark Day as Completed
+                        {% endif %}
+                    </button>
+
+                </div>
+
+            </div>
+
+            <!-- Full-width Optimization Preview -->
+            <div
+                class="optimization-preview"
+                id="optimization-preview-{{ day.day_number }}"
+                style="display: none;"
+                >
+            </div>
+
+
+            <!-- Destinations -->
+            <div class="day-places">
+
+                {% if day.items %}
+
+                    {% for item in day.items %}
+
+                    <div
+                        class="itinerary-place"
+                        data-day="{{ day.day_number }}"
+                        data-lon="{{ item.location.coordinates.0|default:'' }}"
+                        data-lat="{{ item.location.coordinates.1|default:'' }}">
+
+                        <div class="itinerary-place-details">
+
+                            <h3>{{ item.name }}</h3>
+
+                            <p>{{ item.category }}</p>
+
+                            {% if item.address %}
+                            <p>
+                                {% if item.address.street %}
+                                    {{ item.address.street }},
+                                {% endif %}
+
+                                {% if item.address.city %}
+                                    {{ item.address.city }},
+                                {% endif %}
+
+                                {% if item.address.district %}
+                                    {{ item.address.district }},
+                                {% endif %}
+
+                                {% if item.address.state %}
+                                    {{ item.address.state }},
+                                {% endif %}
+
+                                {% if item.address.country %}
+                                    {{ item.address.country }}
+                                {% endif %}
+                            </p>
+                            {% endif %}
+
+                        </div>
+
+                        <!-- Destination Actions -->
+                        <div class="place-actions">
+
+                            {% if not forloop.first %}
+                            <button
+                                type="button"
+                                class="reorder-place-button"
+                                data-day="{{ day.day_number }}"
+                                data-index="{{ forloop.counter0 }}"
+                                data-direction="up"
+                                title="Move up">
+                                ↑
+                            </button>
+                            {% endif %}
+
+                            {% if not forloop.last %}
+                            <button
+                                type="button"
+                                class="reorder-place-button"
+                                data-day="{{ day.day_number }}"
+                                data-index="{{ forloop.counter0 }}"
+                                data-direction="down"
+                                title="Move down">
+                                ↓
+                            </button>
+                            {% endif %}
+
+                            <button
+                                type="button"
+                                class="remove-place-button"
+                                data-day="{{ day.day_number }}"
+                                data-index="{{ forloop.counter0 }}">
+                                Remove
+                            </button>
+
+                        </div>
+                        
+                        <div class="nearby-section">
+                            <button type="button" class="nearby-toggle-button">
+                                📍 Find Nearby Places
+                            </button>
+                        
+                            <div class="nearby-panel" hidden>
+                                <div class="nearby-tabs">
+                                    <button type="button" class="nearby-tab active" data-category="hotel">
+                                        Hotels
+                                    </button>
+                                    <button type="button" class="nearby-tab" data-category="restaurant">
+                                        Restaurants
+                                    </button>
+                                    <button type="button" class="nearby-tab" data-category="cafe">
+                                        Cafés
+                                    </button>
+                                </div>
+                        
+                                <div class="nearby-results">
+                                    Select a category to find nearby places.
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    {% endfor %}
+
+                {% else %}
+
+                    <p class="empty-day">
+                        No destinations added to this day yet.
+                    </p>
+
+                {% endif %}
+
+            </div>
+
+            <!-- Daily Map -->
+            <div class="day-route-section">
+
+                {% if day.items %}
+
+                <button
+                    type="button"
+                    class="show-day-map-button"
+                    data-map-id="day-map-{{ day.day_number }}">
+                    Show in Map
+                </button>
+
+                <div
+                    id="day-map-{{ day.day_number }}"
+                    class="day-route-map"
+                    data-day="{{ day.day_number }}"
+                    hidden>
+                </div>
+
+                <div
+                    id="route-summary-{{ day.day_number }}"
+                    class="route-summary"
+                    hidden>
+                </div>
+
+                {% endif %}
+
+            </div>
+
+            <br><br>
+
+            <a
+                class="add-destination-button"
+                href="/places/?trip_id={{ trip_id }}&day={{ day.day_number }}">
+                + Add Destination
+            </a>
+
+        </article>
+
+        {% empty %}
+
+        <p>No itinerary days found.</p>
+
+        {% endfor %}
+
+    </section>
+
+</main>
+
+<script>
+    window.TRIP_ID = "{{ trip_id|escapejs }}";
+</script>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="{% static 'trips/js/itinerary.js' %}"></script>
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- Expense Tracker -->
+<script src="{% static 'trips/js/expenses.js' %}"></script>
+
+<script src="{% static 'trips/js/weather.js' %}"></script>
+
+</body>
+</html>

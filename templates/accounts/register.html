@@ -1,0 +1,196 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Create account — TourismPlanner</title>
+
+    {% load static %}
+
+    <link rel="stylesheet" href="{% static 'accounts/css/auth.css' %}">
+</head>
+
+<body class="auth-body">
+    <div class="auth-shell">
+
+        <aside class="auth-panel" aria-hidden="true">
+            <p class="brand-mark">TourismPlanner</p>
+
+            <h1>Plan journeys with a clear itinerary and a calm budget.</h1>
+
+            <p>
+                Create your account and verify your Email address
+                to get started with TourismPlanner.
+            </p>
+        </aside>
+
+        <main class="auth-card">
+
+            <p class="brand-mark brand-mark--mobile">
+                TourismPlanner
+            </p>
+
+            <h2>Create your account</h2>
+
+            <p class="lede">
+                Enter your details to create your TourismPlanner account.
+                You will receive an OTP on your registered email address
+                to verify your account.
+            </p>
+
+            <!-- Django messages -->
+            {% if messages %}
+                <ul class="messages" aria-live="polite">
+                    {% for message in messages %}
+                        <li class="message message--{{ message.tags }}">
+                            {{ message }}
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+
+            <!-- Registration form -->
+            <form
+                method="post"
+                action="{% url 'accounts:register' %}"
+                class="auth-form"
+                data-register-form
+                novalidate
+            >
+                {% csrf_token %}
+
+                {% if form.non_field_errors %}
+                    <ul class="form-errors">
+                        {% for error in form.non_field_errors %}
+                            <li>{{ error }}</li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+
+                <!-- Full name -->
+                <div class="field">
+                    <label for="{{ form.name.id_for_label }}">
+                        {{ form.name.label }}
+                    </label>
+
+                    {{ form.name }}
+
+                    {% if form.name.errors %}
+                        <p class="field-error">
+                            {{ form.name.errors.0 }}
+                        </p>
+                    {% endif %}
+                </div>
+
+                <!-- Email -->
+                <div class="field">
+                    <label for="{{ form.email.id_for_label }}">
+                        {{ form.email.label }}
+                    </label>
+
+                    {{ form.email }}
+
+                    {% if form.email.errors %}
+                        <p class="field-error">
+                            {{ form.email.errors.0 }}
+                        </p>
+                    {% endif %}
+                </div>
+
+                <!-- Mobile number -->
+                <div class="field">
+                    <label for="{{ form.mobile_number.id_for_label }}">
+                        {{ form.mobile_number.label }}
+                    </label>
+
+                    {{ form.mobile_number }}
+
+                    {% if form.mobile_number.help_text %}
+                        <p class="field-help">
+                            {{ form.mobile_number.help_text }}
+                        </p>
+                    {% endif %}
+
+                    {% if form.mobile_number.errors %}
+                        <p class="field-error">
+                            {{ form.mobile_number.errors.0 }}
+                        </p>
+                    {% endif %}
+                </div>
+
+                <!-- Password -->
+                <div class="field">
+                    <label for="{{ form.password.id_for_label }}">
+                        {{ form.password.label }}
+                    </label>
+
+                    <div class="password-row">
+                        {{ form.password }}
+
+                        <button
+                            type="button"
+                            class="text-button"
+                            data-password-toggle
+                            aria-controls="{{ form.password.id_for_label }}"
+                        >
+                            Show
+                        </button>
+                    </div>
+
+                    {% if form.password.errors %}
+                        <p class="field-error">
+                            {{ form.password.errors.0 }}
+                        </p>
+                    {% endif %}
+                </div>
+
+                <!-- Confirm password -->
+                <div class="field">
+                    <label for="{{ form.confirm_password.id_for_label }}">
+                        {{ form.confirm_password.label }}
+                    </label>
+
+                    <div class="password-row">
+                        {{ form.confirm_password }}
+
+                        <button
+                            type="button"
+                            class="text-button"
+                            data-password-toggle
+                            aria-controls="{{ form.confirm_password.id_for_label }}"
+                        >
+                            Show
+                        </button>
+                    </div>
+
+                    {% if form.confirm_password.errors %}
+                        <p class="field-error">
+                            {{ form.confirm_password.errors.0 }}
+                        </p>
+                    {% endif %}
+                </div>
+
+                <!-- Submit -->
+                <button
+                    type="submit"
+                    class="submit-button"
+                    data-submit-button
+                >
+                    Create account
+                </button>
+
+            </form>
+
+            <p class="auth-footer">
+                Already have an account?
+                <a href="{% url 'accounts:login' %}">Sign in</a>
+            </p>
+
+        </main>
+    </div>
+
+    <script src="{% static 'accounts/js/register.js' %}"></script>
+
+</body>
+</html>

@@ -1,0 +1,423 @@
+
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nearby Places | TourismPlanner</title>
+
+    <style>
+        
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #f5f7f3;
+    color: #263b32;
+}
+
+/* Header */
+header {
+    background: #ffffff;
+    padding: 22px 6%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #e3e9e2;
+}
+
+.brand {
+    font-size: 25px;
+    font-weight: 700;
+    color: #245f46;
+}
+
+a {
+    text-decoration: none;
+}
+
+.back-link {
+    color: #315b48;
+    font-size: 16px;
+    font-weight: 500;
+}
+
+/* Main content */
+main {
+    max-width: 1200px;
+    margin: 55px auto;
+    padding: 0 25px;
+}
+
+.page-heading {
+    margin-bottom: 30px;
+}
+
+.page-heading h1 {
+    margin: 12px 0;
+    font-size: 42px;
+    font-weight: 700;
+    color: #263b32;
+}
+
+.page-heading h3 {
+    font-size: 22px;
+    margin: 10px 0;
+    color: #315b48;
+}
+
+.page-heading p {
+    color: #829087;
+    font-size: 18px;
+}
+
+/* Category tabs */
+.category-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin: 30px 0;
+}
+
+.category-tab {
+    padding: 12px 20px;
+    border: 1px solid #dce6dc;
+    border-radius: 10px;
+    background: #ffffff;
+    color: #315b48;
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 600;
+    transition: 0.2s ease;
+}
+
+.category-tab:hover {
+    background: #edf4ed;
+    border-color: #a9c5b0;
+}
+
+.category-tab.active {
+    background: #28684d;
+    color: #ffffff;
+    border-color: #28684d;
+}
+
+.category-tab.active:hover {
+    background: #20573f;
+}
+
+/* Results card */
+.results-card {
+    background: #ffffff;
+    border: 1px solid #e0e8df;
+    border-radius: 20px;
+    padding: 28px;
+    box-shadow: 0 4px 15px rgba(38, 59, 50, 0.04);
+}
+
+.results-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 22px;
+}
+
+.results-header h2 {
+    margin: 0;
+    font-size: 25px;
+    color: #263b32;
+}
+
+.results-count {
+    color: #829087;
+    font-size: 14px;
+}
+
+/* Table */
+.table-wrapper {
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 650px;
+}
+
+th, td {
+    padding: 17px 14px;
+    text-align: left;
+    border-bottom: 1px solid #edf1eb;
+    font-size: 14px;
+}
+
+th {
+    background: #f5f8f3;
+    color: #496454;
+    font-weight: 700;
+}
+
+td {
+    color: #52645a;
+}
+
+tbody tr:hover {
+    background: #f8faf6;
+}
+
+/* Category badge */
+.category-label {
+    display: inline-block;
+    background: #e8f2e9;
+    color: #28684d;
+    padding: 6px 11px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+/* Directions */
+.directions {
+    color: #28684d;
+    font-weight: 600;
+}
+
+.directions:hover {
+    color: #174a34;
+    text-decoration: underline;
+}
+
+/* Empty and loading messages */
+.message {
+    text-align: center;
+    padding: 40px 10px;
+    color: #829087;
+    font-size: 15px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    main {
+        margin: 35px auto;
+        padding: 0 16px;
+    }
+
+    .page-heading h1 {
+        font-size: 30px;
+    }
+
+    .results-card {
+        padding: 18px;
+    }
+
+    .category-tabs {
+        gap: 8px;
+    }
+
+    .category-tab {
+        padding: 10px 13px;
+        font-size: 13px;
+    }
+}
+
+    </style>
+</head>
+
+<body>
+
+<header>
+    <div class="brand">TourismPlanner</div>
+    <a href="/trips/" class="back-link">← Back to Trips</a>
+</header>
+
+<main>
+    <section class="page-heading">
+        <h1>Explore Nearby Places</h1>
+        <h3 id="destinationName">{{ destination }}</h3>
+        <p>Discover places within 5 km of your selected destination.</p>
+    </section>
+
+    <div class="category-tabs">
+        <button class="category-tab active" data-category="all">All Places</button>
+        <button class="category-tab" data-category="hotel">Hotels</button>
+        <button class="category-tab" data-category="restaurant">Restaurants</button>
+        <button class="category-tab" data-category="cafe">Cafés</button>
+        <button class="category-tab" data-category="attraction">Attractions</button>
+        <button class="category-tab" data-category="museum">Museums</button>
+        <button class="category-tab" data-category="historic_site">Historic Sites</button>
+        <button class="category-tab" data-category="art_culture">Art & Culture</button>
+    </div>
+
+    <section class="results-card">
+        <div class="results-header">
+            <h2 id="categoryTitle">All Nearby Places</h2>
+            <span class="results-count" id="resultsCount">Loading...</span>
+        </div>
+
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Place Name</th>
+                        <th>Category</th>
+                        <th>Distance</th>
+                        <th>Address</th>
+                        <th>Directions</th>
+                    </tr>
+                </thead>
+                <tbody id="nearbyTableBody">
+                    <tr>
+                        <td colspan="6" class="message">Finding nearby places...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+</main>
+
+<script>
+    const latitude = "{{ latitude|escapejs }}";
+    const longitude = "{{ longitude|escapejs }}";
+
+    const tableBody = document.getElementById("nearbyTableBody");
+    const resultsCount = document.getElementById("resultsCount");
+    const categoryTitle = document.getElementById("categoryTitle");
+
+    let allPlaces = [];
+    let activeCategory = "all";
+
+    const categoryNames = {
+        all: "All Nearby Places",
+        hotel: "Hotels",
+        restaurant: "Restaurants",
+        cafe: "Cafés",
+        attraction: "Attractions",
+        museum: "Museums",
+        historic_site: "Historic Sites",
+        art_culture: "Art & Culture"
+    };
+
+    async function loadNearbyPlaces() {
+        if (!latitude || !longitude) {
+            showMessage("Destination coordinates are unavailable.");
+            return;
+        }
+
+        try {
+            // const response = await fetch(
+            //     `/trips/api/nearby-places/?latitude=${encodeURIComponent(latitude)}&longitude=${encodeURIComponent(longitude)}`
+            // );
+
+            const response = await fetch(
+    `/places/api/nearby-attractions/?latitude=${encodeURIComponent(latitude)}&longitude=${encodeURIComponent(longitude)}`
+);
+
+            const data = await response.json();
+
+            if (!response.ok || !data.success) {
+                throw new Error(data.error || "Unable to load nearby places.");
+            }
+
+            allPlaces = data.results || [];
+            renderPlaces();
+
+        } catch (error) {
+            showMessage(error.message);
+            resultsCount.textContent = "Unable to load";
+        }
+    }
+
+    function renderPlaces() {
+        const filtered = activeCategory === "all"
+            ? allPlaces
+            : allPlaces.filter(place => place.category === activeCategory);
+
+        categoryTitle.textContent = categoryNames[activeCategory];
+        resultsCount.textContent = `${filtered.length} places found`;
+
+        tableBody.innerHTML = "";
+
+        if (!filtered.length) {
+            showMessage("No places found in this category within 5 km.");
+            return;
+        }
+
+        filtered.forEach((place, index) => {
+            const row = document.createElement("tr");
+
+            const values = [
+                index + 1,
+                place.name || "Unnamed place",
+                categoryNames[place.category] || place.category,
+                `${place.distance_km} km`,
+                place.address || "Address unavailable"
+            ];
+
+            values.forEach((value, cellIndex) => {
+                const cell = document.createElement("td");
+
+                if (cellIndex === 2) {
+                    const badge = document.createElement("span");
+                    badge.className = "category-label";
+                    badge.textContent = value;
+                    cell.appendChild(badge);
+                } else {
+                    cell.textContent = value;
+                }
+
+                row.appendChild(cell);
+            });
+
+            const actionCell = document.createElement("td");
+            const link = document.createElement("a");
+
+            link.className = "directions";
+            link.textContent = "Get Directions ↗";
+            link.href = `https://www.google.com/maps/dir/?api=1&destination=${place.latitude},${place.longitude}`;
+            link.target = "_blank";
+            link.rel = "noopener noreferrer";
+
+            actionCell.appendChild(link);
+            row.appendChild(actionCell);
+            tableBody.appendChild(row);
+        });
+    }
+
+    function showMessage(message) {
+        tableBody.innerHTML = "";
+
+        const row = document.createElement("tr");
+        const cell = document.createElement("td");
+
+        cell.colSpan = 6;
+        cell.className = "message";
+        cell.textContent = message;
+
+        row.appendChild(cell);
+        tableBody.appendChild(row);
+    }
+
+    document.querySelectorAll(".category-tab").forEach(button => {
+        button.addEventListener("click", () => {
+            document.querySelectorAll(".category-tab").forEach(tab => {
+                tab.classList.remove("active");
+            });
+
+            button.classList.add("active");
+            activeCategory = button.dataset.category;
+            renderPlaces();
+        });
+    });
+
+    loadNearbyPlaces();
+</script>
+
+</body>
+</html>
