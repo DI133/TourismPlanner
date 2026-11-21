@@ -7,4 +7,3 @@ requests
 reportlab
 whitenoise>=6.6,<7.0
 gunicorn>=22.0,<24.0
-django-anymail
