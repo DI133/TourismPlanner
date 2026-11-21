@@ -1,0 +1,7 @@
+
+Django>=5.0,<6.0
+python-dotenv
+pymongo
+phonenumbers
+requests
+reportlab
