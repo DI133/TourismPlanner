@@ -271,7 +271,7 @@ def explore_places(request):
 
                 # Cache the combined district inventory to avoid repeating
                 # Nominatim requests while the user changes pages/categories.
-                cache.set(cache_key, all_places, timeout=900)
+                cache.set(cache_key, all_places, timeout=3600)
 
             total = len(all_places)
             start = (page - 1) * page_size
@@ -454,7 +454,7 @@ def explore_weather_api(request):
             ),
         }
 
-        cache.set(cache_key, result, 1800)
+        cache.set(cache_key, result, 3600)
         return JsonResponse(result)
 
     except (TypeError, ValueError):
@@ -743,7 +743,7 @@ def nearby_attractions_api(request):
         cache.set(
             cache_key,
             result,
-            1800 if final_places else 60
+            3600 if final_places else 60
         )
 
         print("FINAL NEARBY ATTRACTIONS:", len(final_places))
